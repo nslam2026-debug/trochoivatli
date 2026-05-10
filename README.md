@@ -1,0 +1,781 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Vật Lí 9 Runner - Ôn Tập Kiến Thức</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #87CEEB; /* Bầu trời xanh nhạt giống ảnh */
+            font-family: 'Roboto', sans-serif;
+            touch-action: none;
+        }
+        .pixel-font {
+            font-family: 'Press Start 2P', cursive;
+        }
+        #gameCanvas {
+            display: block;
+            width: 100vw;
+            height: 100vh;
+            image-rendering: pixelated; /* Giúp đồ họa pixel sắc nét */
+        }
+        .ui-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+        .modal-bg {
+            background-color: rgba(0, 0, 0, 0.85);
+            pointer-events: auto;
+        }
+        .btn {
+            transition: all 0.2s;
+            pointer-events: auto;
+        }
+        .btn:active {
+            transform: scale(0.95);
+        }
+        .btn-option {
+            background: linear-gradient(180deg, #ffffff 0%, #e0e0e0 100%);
+            border: 4px solid #333;
+            border-radius: 12px;
+            box-shadow: 0 4px 0 #999;
+        }
+        .btn-option:active {
+            box-shadow: 0 0 0 #999;
+            transform: translateY(4px);
+        }
+        .btn-option.correct {
+            background: linear-gradient(180deg, #a7f3d0 0%, #10b981 100%);
+            color: white;
+            border-color: #065f46;
+        }
+        .btn-option.wrong {
+            background: linear-gradient(180deg, #fecaca 0%, #ef4444 100%);
+            color: white;
+            border-color: #991b1b;
+        }
+        .badge-NB { background-color: #10b981; }
+        .badge-TH { background-color: #3b82f6; }
+        .badge-VD { background-color: #f59e0b; }
+        .badge-VDC { background-color: #ef4444; }
+    </style>
+</head>
+<body>
+
+    <!-- Game Canvas -->
+    <canvas id="gameCanvas"></canvas>
+
+    <!-- HUD -->
+    <div id="hud" class="ui-layer flex justify-between p-4 px-6 items-start hidden">
+        <div class="flex flex-col gap-2 pointer-events-auto">
+            <div class="pixel-font text-white text-xl drop-shadow-[0_2px_2px_rgba(0,0,0,0.8)]" id="scoreDisplay">ĐIỂM: 0</div>
+            <div class="pixel-font text-white text-lg drop-shadow-[0_2px_2px_rgba(0,0,0,0.8)]" id="livesDisplay">❤️❤️❤️❤️❤️</div>
+            <div class="text-yellow-300 font-bold drop-shadow-[0_2px_2px_rgba(0,0,0,0.8)]" id="streakDisplay">Chuỗi đúng: 0/3</div>
+        </div>
+        <div class="flex flex-col items-end gap-2 pointer-events-auto">
+            <div class="pixel-font text-white text-xl drop-shadow-[0_2px_2px_rgba(0,0,0,0.8)]" id="timeDisplay">50:00</div>
+            <div class="text-white font-bold drop-shadow-[0_2px_2px_rgba(0,0,0,0.8)]" id="questionCountDisplay">Câu hỏi: 0/40</div>
+        </div>
+    </div>
+
+    <!-- Màn hình Khởi động -->
+    <div id="startScreen" class="ui-layer modal-bg flex flex-col items-center justify-center hidden">
+        <div class="bg-white p-6 rounded-2xl border-8 border-yellow-400 max-w-lg w-[90%] text-center shadow-2xl relative">
+            <h1 class="pixel-font text-2xl md:text-3xl text-blue-600 mb-4 leading-tight">VẬT LÍ 9 RUNNER</h1>
+            <p class="mb-4 text-gray-700 font-bold text-lg">Chương trình 2018 - Kết nối tri thức</p>
+            <div class="text-left text-sm md:text-base text-gray-700 mb-6 bg-gray-100 p-4 rounded-lg">
+                <p>🍄 <strong>Ăn nấm:</strong> Cơ thể lớn lên, tăng điểm.</p>
+                <p>🍎 <strong>Ăn táo:</strong> Trả lời câu hỏi trắc nghiệm.</p>
+                <p class="text-red-600">🕷️ <strong>Nhện:</strong> Đang to sẽ bị teo nhỏ. Đang nhỏ sẽ mất mạng.</p>
+                <p>❤️ Bạn có <strong>5 mạng</strong>. Trả lời sai trừ 1 mạng.</p>
+                <p>🔥 Trả lời đúng <strong>3 câu liên tiếp</strong> được cộng 1 mạng.</p>
+                <p class="mt-2 text-xs text-center italic text-blue-600 font-bold">Chạm màn hình hoặc bấm Space/Mũi tên lên để nhảy.</p>
+            </div>
+            
+            <div class="flex flex-col md:flex-row items-center justify-center gap-6">
+                <button id="startBtn" class="btn bg-green-500 hover:bg-green-600 text-white font-bold py-4 px-8 rounded-xl border-b-4 border-green-700 text-xl pixel-font">CHƠI NGAY</button>
+                
+                <div class="flex flex-col items-center">
+                    <div id="qrcode" class="bg-white p-2 border-2 border-gray-300 rounded-lg"></div>
+                    <span class="text-xs font-bold text-gray-500 mt-1">Quét mã để chơi trên ĐT</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Màn hình Câu hỏi -->
+    <div id="questionScreen" class="ui-layer modal-bg flex items-center justify-center hidden">
+        <div class="bg-white p-6 md:p-8 rounded-2xl border-4 border-blue-500 max-w-2xl w-[95%] shadow-2xl relative max-h-[90vh] overflow-y-auto">
+            <div class="flex justify-between items-center mb-4">
+                <span id="questionTopic" class="font-bold text-gray-600 uppercase text-sm border-b-2 border-gray-300 pb-1">Chủ đề: Cơ học</span>
+                <span id="questionLevel" class="text-white text-xs font-bold px-3 py-1 rounded-full badge-NB">Nhận biết</span>
+            </div>
+            
+            <h2 id="questionText" class="text-lg md:text-xl font-bold text-gray-800 mb-6">Nội dung câu hỏi?</h2>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4" id="optionsContainer"></div>
+            
+            <div id="feedbackMsg" class="mt-6 text-center font-bold text-xl hidden transition-all"></div>
+            <button id="nextBtn" class="mt-6 btn w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-6 rounded-xl hidden">TIẾP TỤC CHẠY</button>
+        </div>
+    </div>
+
+    <!-- Màn hình Game Over -->
+    <div id="gameOverScreen" class="ui-layer modal-bg flex flex-col items-center justify-center hidden">
+        <div class="bg-white p-8 rounded-2xl border-8 border-red-500 text-center shadow-2xl">
+            <h1 class="pixel-font text-4xl text-red-500 mb-4">GAME OVER</h1>
+            <p class="text-xl mb-2 font-bold">Lý do: <span id="gameOverReason" class="text-red-600">Hết mạng</span></p>
+            <p class="text-xl mb-6">Câu hỏi đã làm: <span id="finalQuestions" class="font-bold">0</span>/40</p>
+            <button id="restartBtn" class="btn bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-8 rounded-xl border-b-4 border-blue-700 text-xl pixel-font">CHƠI LẠI</button>
+        </div>
+    </div>
+
+    <!-- Màn hình Chiến thắng -->
+    <div id="victoryScreen" class="ui-layer modal-bg flex flex-col items-center justify-center hidden">
+        <div class="bg-white p-8 rounded-2xl border-8 border-yellow-400 text-center shadow-2xl">
+            <h1 class="pixel-font text-3xl text-yellow-500 mb-4">CHÚC MỪNG!</h1>
+            <p class="text-lg mb-2 font-bold text-gray-700">Bạn đã hoàn thành bài thử thách Vật lí 9.</p>
+            <p class="text-xl mb-6">Số mạng còn lại: <span id="victoryLives" class="font-bold text-red-500">5</span></p>
+            <button id="victoryRestartBtn" class="btn bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-8 rounded-xl border-b-4 border-green-700 text-xl pixel-font">LÀM LẠI</button>
+        </div>
+    </div>
+
+<script>
+/**
+ * NGÂN HÀNG CÂU HỎI (40 CÂU)
+ */
+const questionBank = [
+    // NĂNG LƯỢNG CƠ HỌC
+    { id: 1, topic: "Năng lượng cơ học", level: "NB", text: "Động năng của một vật là năng lượng vật có được do đâu?", options: ["Do vật chuyển động.", "Do vật có độ cao so với mặt đất.", "Do vật bị biến dạng đàn hồi.", "Do vật có nhiệt độ cao."], answer: 0 },
+    { id: 2, topic: "Năng lượng cơ học", level: "NB", text: "Công thức tính thế năng trọng trường của một vật ở độ cao h so với mốc là gì?", options: ["Wt = m.v", "Wt = 1/2.m.v²", "Wt = m.g.h", "Wt = 1/2.m.g.h"], answer: 2 },
+    { id: 3, topic: "Năng lượng cơ học", level: "NB", text: "Cơ năng của một vật chịu tác dụng của trọng lực được tính bằng:", options: ["Tổng động năng và thế năng.", "Hiệu động năng và thế năng.", "Tích động năng và thế năng.", "Thương động năng và thế năng."], answer: 0 },
+    { id: 4, topic: "Năng lượng cơ học", level: "TH", text: "Khi một quả bóng rơi từ trên cao xuống đất, sự chuyển hóa năng lượng diễn ra như thế nào?", options: ["Động năng chuyển hóa thành thế năng.", "Thế năng chuyển hóa thành động năng.", "Thế năng không đổi, động năng tăng.", "Động năng giảm, thế năng giảm."], answer: 1 },
+    { id: 5, topic: "Năng lượng cơ học", level: "TH", text: "Khi bắn mũi tên từ cung, năng lượng đã chuyển hóa như thế nào?", options: ["Thế năng đàn hồi của dây cung chuyển thành thế năng trọng trường của mũi tên.", "Thế năng đàn hồi của dây cung chuyển thành động năng của mũi tên.", "Động năng của dây cung chuyển thành động năng của mũi tên.", "Động năng của dây cung chuyển thành thế năng của mũi tên."], answer: 1 },
+    { id: 6, topic: "Năng lượng cơ học", level: "VD", text: "Một vật khối lượng 2kg đang chuyển động với vận tốc 5m/s. Động năng của vật là bao nhiêu?", options: ["5 J", "10 J", "25 J", "50 J"], answer: 2 }, 
+    { id: 7, topic: "Năng lượng cơ học", level: "VD", text: "Một vật khối lượng 1kg được thả rơi tự do từ độ cao 10m (lấy g = 10m/s²). Cơ năng của vật lúc bắt đầu thả là:", options: ["10 J", "50 J", "100 J", "0 J"], answer: 2 }, 
+    { id: 8, topic: "Năng lượng cơ học", level: "VDC", text: "Một con lắc đơn được kéo lệch khỏi VTCB một góc α rồi buông tay. Quá trình dao động có ma sát. Phát biểu nào sau đây ĐÚNG về cơ năng của vật?", options: ["Cơ năng được bảo toàn tuyệt đối.", "Cơ năng tăng dần do gia tốc trọng trường tác dụng.", "Cơ năng giảm dần và chuyển hóa thành nhiệt năng.", "Thế năng và động năng đều giảm cùng lúc trong suốt quá trình."], answer: 2 },
+
+    // ÁNH SÁNG
+    { id: 9, topic: "Ánh sáng", level: "NB", text: "Hiện tượng khúc xạ ánh sáng là hiện tượng tia sáng bị:", options: ["Hắt lại môi trường cũ khi gặp mặt phân cách.", "Gãy khúc tại mặt phân cách khi truyền từ môi trường trong suốt này sang môi trường trong suốt khác.", "Truyền thẳng khi qua mặt phân cách giữa hai môi trường.", "Hấp thụ hoàn toàn khi gặp mặt phân cách."], answer: 1 },
+    { id: 10, topic: "Ánh sáng", level: "NB", text: "Điều kiện để xảy ra hiện tượng phản xạ toàn phần là gì?", options: ["Ánh sáng đi từ môi trường chiết quang kém sang môi trường chiết quang hơn và i ≥ igh.", "Ánh sáng đi từ môi trường chiết quang hơn sang môi trường chiết quang kém và i ≥ igh.", "Góc tới i phải luôn bằng 0.", "Ánh sáng đi từ không khí vào nước."], answer: 1 },
+    { id: 11, topic: "Ánh sáng", level: "NB", text: "Thấu kính hội tụ có đặc điểm nhận dạng nào sau đây?", options: ["Phần rìa dày hơn phần giữa.", "Phần rìa mỏng hơn phần giữa.", "Hai mặt phẳng song song.", "Làm bằng vật liệu cản sáng."], answer: 1 },
+    { id: 12, topic: "Ánh sáng", level: "TH", text: "Khi ánh sáng truyền từ không khí vào nước (góc tới i > 0), so sánh góc khúc xạ (r) và góc tới (i)?", options: ["r > i", "r = i", "r < i", "r = 0"], answer: 2 },
+    { id: 13, topic: "Ánh sáng", level: "TH", text: "Tia sáng tới song song với trục chính của thấu kính phân kì thì tia ló sẽ:", options: ["Đi qua tiêu điểm F.", "Kéo dài đi qua tiêu điểm F'.", "Truyền thẳng không đổi hướng.", "Kéo dài đi qua tiêu điểm F nằm cùng phía với tia tới."], answer: 3 },
+    { id: 14, topic: "Ánh sáng", level: "TH", text: "Vật sáng AB đặt trước thấu kính phân kì luôn cho ảnh có tính chất gì?", options: ["Ảnh thật, ngược chiều, nhỏ hơn vật.", "Ảnh ảo, cùng chiều, nhỏ hơn vật.", "Ảnh ảo, cùng chiều, lớn hơn vật.", "Ảnh thật, cùng chiều, bằng vật."], answer: 1 },
+    { id: 15, topic: "Ánh sáng", level: "VD", text: "Một vật sáng AB cao 2cm đặt vuông góc với trục chính của thấu kính hội tụ có f = 10cm, d = 30cm. Khoảng cách từ ảnh đến thấu kính (d') là:", options: ["10 cm", "15 cm", "20 cm", "30 cm"], answer: 1 }, 
+    { id: 16, topic: "Ánh sáng", level: "VDC", text: "Một người bị cận thị có điểm cực viễn cách mắt 50cm. Để nhìn rõ vật ở vô cực không phải điều tiết, người đó phải đeo kính (sát mắt) có tiêu cự là:", options: ["f = 50cm", "f = -50cm", "f = 25cm", "f = -25cm"], answer: 1 },
+
+    // ĐIỆN
+    { id: 17, topic: "Điện", level: "NB", text: "Hệ thức của định luật Ôm là:", options: ["I = U.R", "I = R/U", "I = U/R", "U = I/R"], answer: 2 },
+    { id: 18, topic: "Điện", level: "NB", text: "Công thức tính điện trở tương đương của đoạn mạch gồm 2 điện trở R1, R2 mắc nối tiếp là:", options: ["Rtđ = R1 + R2", "Rtđ = R1 - R2", "1/Rtđ = 1/R1 + 1/R2", "Rtđ = (R1.R2)/(R1+R2)"], answer: 0 },
+    { id: 19, topic: "Điện", level: "NB", text: "Kí hiệu của điện trở biến trở (biến trở) trong sơ đồ mạch điện có đặc điểm gì khác so với điện trở thường?", options: ["Có hình chữ nhật.", "Có mũi tên chỉ vào hoặc vạch chéo lên hình chữ nhật.", "Có hình tròn chứa chữ A.", "Có hình vòng xoắn."], answer: 1 },
+    { id: 20, topic: "Điện", level: "TH", text: "Trong đoạn mạch mắc song song gồm 2 điện trở R1, R2. Mối liên hệ giữa cường độ dòng điện trong mạch chính (I) và mạch rẽ (I1, I2) là:", options: ["I = I1 = I2", "I = I1 + I2", "I = I1 - I2", "I = (I1.I2)/(I1+I2)"], answer: 1 },
+    { id: 21, topic: "Điện", level: "TH", text: "Công suất điện của một đoạn mạch cho biết ý nghĩa gì?", options: ["Lượng điện tích dịch chuyển trong đoạn mạch.", "Năng lượng điện mà đoạn mạch tiêu thụ trong một đơn vị thời gian.", "Sức cản trở dòng điện của đoạn mạch.", "Hiệu điện thế giữa hai đầu đoạn mạch."], answer: 1 },
+    { id: 22, topic: "Điện", level: "VD", text: "Cho đoạn mạch gồm 2 điện trở R1 = 10Ω và R2 = 15Ω mắc nối tiếp vào hiệu điện thế U = 12V. Cường độ dòng điện chạy qua mạch là:", options: ["0.48 A", "1.2 A", "0.8 A", "2 A"], answer: 0 },
+    { id: 23, topic: "Điện", level: "VD", text: "Bếp điện có ghi 220V - 1000W được sử dụng ở hiệu điện thế 220V. Tính điện năng tiêu thụ của bếp trong 2 giờ?", options: ["2 kWh", "1000 kWh", "440 kWh", "0.5 kWh"], answer: 0 },
+    { id: 24, topic: "Điện", level: "VDC", text: "Một biến trở Rb được mắc nối tiếp với điện trở R = 10Ω vào nguồn U = 12V. Điều chỉnh Rb bằng bao nhiêu để công suất tỏa nhiệt trên chính biến trở Rb đạt giá trị cực đại?", options: ["Rb = 0Ω", "Rb = 5Ω", "Rb = 10Ω", "Rb = 20Ω"], answer: 2 },
+
+    // TỪ
+    { id: 25, topic: "Từ học", level: "NB", text: "Chiều của đường sức từ bên ngoài thanh nam châm được quy ước như thế nào?", options: ["Đi ra từ cực Nam, đi vào cực Bắc.", "Đi ra từ cực Bắc, đi vào cực Nam.", "Đi ra từ cả hai cực.", "Chỉ có dạng vòng tròn khép kín, không có chiều."], answer: 1 },
+    { id: 26, topic: "Từ học", level: "NB", text: "Để xác định chiều của đường sức từ trong lòng ống dây có dòng điện chạy qua, ta dùng quy tắc nào?", options: ["Quy tắc bàn tay trái.", "Quy tắc nắm tay phải.", "Quy tắc đinh ốc.", "Cả B và C đều đúng."], answer: 3 },
+    { id: 27, topic: "Từ học", level: "NB", text: "Điều kiện cơ bản để xuất hiện dòng điện cảm ứng trong cuộn dây dẫn kín là gì?", options: ["Đặt cuộn dây gần một nam châm.", "Số đường sức từ xuyên qua tiết diện S của cuộn dây biến thiên.", "Cho cuộn dây chuyển động tịnh tiến đều trong từ trường đều.", "Có một nguồn điện mắc vào cuộn dây."], answer: 1 },
+    { id: 28, topic: "Từ học", level: "NB", text: "Máy phát điện xoay chiều hoạt động dựa trên hiện tượng vật lí nào?", options: ["Hiện tượng đoản mạch.", "Hiện tượng khúc xạ ánh sáng.", "Hiện tượng cảm ứng điện từ.", "Tác dụng nhiệt của dòng điện."], answer: 2 },
+    { id: 29, topic: "Từ học", level: "TH", text: "Dùng quy tắc bàn tay trái để xác định đại lượng nào sau đây?", options: ["Chiều dòng điện cảm ứng.", "Chiều đường sức từ của dòng điện thẳng.", "Chiều lực điện từ tác dụng lên dây dẫn mang dòng điện đặt trong từ trường.", "Cực của nam châm điện."], answer: 2 },
+    { id: 30, topic: "Từ học", level: "TH", text: "Khi đưa cực Bắc của nam châm lại gần cuộn dây dẫn kín, dòng điện cảm ứng xuất hiện có chiều sao cho mặt từ của cuộn dây đối diện với nam châm là:", options: ["Cực Nam (hút nam châm).", "Cực Bắc (đẩy nam châm).", "Không xác định được.", "Mặt không có từ tính."], answer: 1 },
+    { id: 31, topic: "Từ học", level: "VD", text: "Một đoạn dây dẫn mang dòng điện đặt trong từ trường đều. Lực điện từ tác dụng lên dây dẫn lớn nhất khi đoạn dây:", options: ["Song song với các đường sức từ.", "Vuông góc với các đường sức từ.", "Tạo với các đường sức từ một góc 45 độ.", "Tạo với các đường sức từ một góc 30 độ."], answer: 1 },
+    { id: 32, topic: "Từ học", level: "VD", text: "Máy biến thế cấu tạo gồm 2 cuộn dây. Cuộn sơ cấp có 500 vòng, thứ cấp 100 vòng. Nếu U1 = 220V thì U2 là:", options: ["44V", "1100V", "110V", "440V"], answer: 0 },
+
+    // NĂNG LƯỢNG TÁI TẠO
+    { id: 33, topic: "Năng lượng tái tạo", level: "NB", text: "Nguồn năng lượng nào sau đây KHÔNG phải là năng lượng tái tạo?", options: ["Năng lượng mặt trời.", "Năng lượng gió.", "Năng lượng than đá.", "Năng lượng sinh khối."], answer: 2 },
+    { id: 34, topic: "Năng lượng tái tạo", level: "NB", text: "Thiết bị nào sau đây biến đổi trực tiếp năng lượng ánh sáng mặt trời thành điện năng?", options: ["Tuabin gió.", "Pin quang điện (pin mặt trời).", "Máy phát điện thủy điện.", "Lò phản ứng hạt nhân."], answer: 1 },
+    { id: 35, topic: "Năng lượng tái tạo", level: "NB", text: "Năng lượng địa nhiệt khai thác nhiệt lượng từ đâu?", options: ["Bức xạ mặt trời.", "Chuyển động của dòng chảy đại dương.", "Nhiệt từ sâu trong lòng Trái Đất.", "Đốt cháy rác thải sinh hoạt."], answer: 2 },
+    { id: 36, topic: "Năng lượng tái tạo", level: "TH", text: "Nhược điểm lớn nhất của việc phát triển các nhà máy điện gió là gì?", options: ["Tạo ra nhiều khí thải nhà kính.", "Phụ thuộc nhiều vào điều kiện thời tiết.", "Làm cạn kiệt nguồn tài nguyên gió.", "Chi phí vận hành hàng ngày rất cao."], answer: 1 },
+    { id: 37, topic: "Năng lượng tái tạo", level: "TH", text: "Sự chuyển hóa năng lượng chủ yếu trong nhà máy thủy điện diễn ra theo trình tự nào?", options: ["Thế năng nước -> Động năng nước -> Động năng tuabin -> Điện năng.", "Động năng nước -> Nhiệt năng -> Điện năng.", "Thế năng nước -> Điện năng -> Nhiệt năng.", "Quang năng -> Động năng -> Điện năng."], answer: 0 },
+    { id: 38, topic: "Năng lượng tái tạo", level: "TH", text: "Việc sử dụng năng lượng tái tạo mang lại lợi ích môi trường lớn nhất là:", options: ["Không tốn diện tích đất.", "Giảm thiểu phát thải khí CO2, hạn chế biến đổi khí hậu.", "Không cần bảo trì thiết bị.", "Sản xuất điện liên tục 24/24 mà không bị gián đoạn."], answer: 1 },
+    { id: 39, topic: "Năng lượng tái tạo", level: "VD", text: "Một tấm pin mặt trời 1m², nhận công suất bức xạ 1000 W. Tấm pin sinh ra công suất điện 150 W. Hiệu suất là:", options: ["10%", "15%", "85%", "100%"], answer: 1 },
+    { id: 40, topic: "Năng lượng tái tạo", level: "VDC", text: "Gia đình dùng 10 bóng 15W, 1 tivi 100W trong 5h/ngày. Hệ thống pin mặt trời chạy 4h nắng/ngày, hiệu suất 10%. Công suất bức xạ mặt trời cần thiết tối thiểu là?", options: ["1250W", "2500W", "3125W", "625W"], answer: 2 } 
+];
+
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+
+let GAME_STATE = 'START';
+let reqAnimationId;
+let lastTime = 0;
+
+function resizeCanvas() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+}
+window.addEventListener('resize', resizeCanvas);
+resizeCanvas();
+
+const GRAVITY = 0.6;
+const JUMP_POWER = -13;
+const GAME_SPEED_BASE = 5;
+const GROUND_HEIGHT = 80;
+
+const gameData = {
+    score: 0, lives: 5, streak: 0,
+    timeLeft: 50 * 60, questionsDone: 0,
+    availableQuestions: [], speed: GAME_SPEED_BASE
+};
+
+function initQuestions() {
+    gameData.availableQuestions = [...questionBank].sort(() => Math.random() - 0.5);
+    gameData.questionsDone = 0;
+}
+
+// --- HỆ THỐNG VẼ PIXEL ART CHUẨN ---
+function drawPixelSprite(ctx, spriteArray, x, y, width, height, colorMap) {
+    const rows = spriteArray.length;
+    const cols = spriteArray[0].length;
+    const pixelW = width / cols;
+    const pixelH = height / rows;
+
+    for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+            const char = spriteArray[r][c];
+            if (char !== ' ') {
+                ctx.fillStyle = colorMap[char];
+                // Thêm 0.5 để xóa các đường gạch nứt giữa các pixel trên một số trình duyệt
+                ctx.fillRect(x + c * pixelW, y + r * pixelH, pixelW + 0.5, pixelH + 0.5); 
+            }
+        }
+    }
+}
+
+// Dữ liệu hình ảnh Mario (Giống ảnh gốc)
+const marioColors = {
+    'R': '#E52521', // Đỏ mũ/áo
+    'B': '#0043A6', // Xanh quần
+    'S': '#FFCC99', // Da người
+    'H': '#6B4226', // Nâu tóc/râu/giày
+    'U': '#000000', // Đen mắt
+    'Y': '#FFD700'  // Vàng cúc áo
+};
+
+const marioIdle = [
+    "    RRRRR   ",
+    "  RRRRRRRRR ",
+    "  HHSSHS    ",
+    " HSHSSSUSSS ",
+    " HSHSSSHHHH ",
+    " HHSSSS     ",
+    "   RRRRRRR  ",
+    "  RRBRRR    ",
+    " RRRBBRRRR  ",
+    "RRRRBBRRRR  ",
+    "SS RRBYRR SS",
+    "SS  BBBBBBSS",
+    "    BBBBBB  ",
+    "   BB    BB ",
+    "  HHH    HHH",
+    " HHHH    HHHH"
+];
+
+const marioWalk = [
+    "    RRRRR   ",
+    "  RRRRRRRRR ",
+    "  HHSSHS    ",
+    " HSHSSSUSSS ",
+    " HSHSSSHHHH ",
+    " HHSSSS     ",
+    "   RRRRRRR  ",
+    "  RRBRRR    ",
+    " RRRBBRRRR  ",
+    "RRRRBBRRRR  ",
+    "SS RRBYRR SS",
+    "SS  BBBBBBSS",
+    "    BBBBBB  ",
+    "   BB       ",
+    "  HHH       ",
+    " HHHH       "
+];
+
+// Dữ liệu hình ảnh Nhện (Giống ảnh gốc)
+const spiderColors = {
+    'U': '#000000', // Đen thân
+    'R': '#FF0000'  // Đỏ mắt
+};
+const spiderSprite = [
+    "  U        U  ",
+    " U U      U U ",
+    "U   UUUUUU   U",
+    "U  UUUUUUUU  U",
+    "  UUURRUURRU  ",
+    "  UUUUUUUUUU  ",
+    "   U      U   ",
+    "  U        U  "
+];
+
+// LỚP NHÂN VẬT
+class Player {
+    constructor() {
+        this.w = 40; // Chiều rộng cơ bản
+        this.h = 55; // Chiều cao cơ bản
+        this.x = 50;
+        this.y = canvas.height - GROUND_HEIGHT - this.h;
+        this.vy = 0;
+        this.isGrounded = true;
+        this.scale = 1;
+        this.targetScale = 1;
+        
+        this.isHurt = false;
+        this.hurtTimer = 0;
+    }
+
+    jump() {
+        if (this.isGrounded && GAME_STATE === 'PLAYING') {
+            this.vy = JUMP_POWER;
+            this.isGrounded = false;
+        }
+    }
+
+    update() {
+        if (this.scale < this.targetScale) this.scale += 0.05;
+        if (this.scale > this.targetScale) this.scale -= 0.05;
+
+        // Bị thương đếm lùi
+        if (this.isHurt) {
+            this.hurtTimer--;
+            if (this.hurtTimer <= 0) this.isHurt = false;
+        }
+
+        let currentH = this.h * this.scale;
+        this.vy += GRAVITY;
+        this.y += this.vy;
+
+        const groundY = canvas.height - GROUND_HEIGHT - currentH;
+        if (this.y >= groundY) {
+            this.y = groundY;
+            this.vy = 0;
+            this.isGrounded = true;
+        }
+    }
+
+    draw(ctx) {
+        // Nhấp nháy tàng hình khi bị thương
+        if (this.isHurt && Math.floor(Date.now() / 100) % 2 === 0) return;
+
+        let currentW = this.w * this.scale;
+        let currentH = this.h * this.scale;
+        
+        ctx.save();
+        
+        // Chọn Frame chạy hoặc đứng im
+        let currentSpriteArray = marioIdle;
+        if (!this.isGrounded) {
+            currentSpriteArray = marioWalk; // Tư thế nhảy
+        } else if (gameData.speed > 0) {
+            // Đổi tư thế chạy theo thời gian
+            currentSpriteArray = Math.floor(Date.now() / 150) % 2 === 0 ? marioIdle : marioWalk;
+        }
+
+        // Vẽ Pixel Mario
+        drawPixelSprite(ctx, currentSpriteArray, this.x, this.y, currentW, currentH, marioColors);
+        
+        ctx.restore();
+    }
+}
+
+// LỚP VẬT PHẨM (Nấm, Táo)
+class Item {
+    constructor(type) {
+        this.type = type;
+        this.size = 40;
+        this.x = canvas.width + 50;
+        this.y = canvas.height - GROUND_HEIGHT - this.size - (Math.random() * 80 + 20); 
+        this.markedForDeletion = false;
+        this.hoverOffset = Math.random() * Math.PI * 2;
+    }
+    update(speed) {
+        this.x -= speed;
+        if (this.x + this.size < 0) this.markedForDeletion = true;
+    }
+    draw(ctx) {
+        ctx.save();
+        let drawY = this.y;
+        if (this.type === 'apple') drawY += Math.sin(Date.now() / 200 + this.hoverOffset) * 10;
+        ctx.font = `${this.size}px Arial`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'top';
+        ctx.fillText(this.type === 'mushroom' ? '🍄' : '🍎', this.x + this.size/2, drawY);
+        ctx.restore();
+    }
+}
+
+// LỚP KẺ ĐỊCH (Nhện)
+class Spider {
+    constructor() {
+        this.w = 55;
+        this.h = 35;
+        this.x = canvas.width + 50;
+        this.y = canvas.height - GROUND_HEIGHT - this.h; // Chạm đất
+        this.markedForDeletion = false;
+    }
+    update(speed) {
+        // Đã giảm tốc độ nhện: Chỉ nhanh hơn mặt đất một xíu (1.05 lần)
+        this.x -= (speed * 1.05);
+        if (this.x + this.w < 0) this.markedForDeletion = true;
+    }
+    draw(ctx) {
+        ctx.save();
+        // Nhấp nhô lên xuống nhẹ khi bò
+        let bounce = Math.sin(Date.now() / 80) * 3;
+        drawPixelSprite(ctx, spiderSprite, this.x, this.y + bounce, this.w, this.h, spiderColors);
+        ctx.restore();
+    }
+}
+
+// CẢNH VẬT ĐÁM MÂY (Theo phong cách Pixel)
+class Decoration {
+    constructor() {
+        this.x = canvas.width + Math.random() * 200;
+        this.y = Math.random() * (canvas.height/2.5);
+        this.w = 80 + Math.random() * 40;
+        this.h = this.w * 0.5;
+        this.speedMulti = 0.2;
+        this.markedForDeletion = false;
+    }
+    update(speed) {
+        this.x -= speed * this.speedMulti;
+        if (this.x + this.w < 0) this.markedForDeletion = true;
+    }
+    draw(ctx) {
+        ctx.fillStyle = '#FFFFFF'; // Mây trắng
+        // Vẽ đám mây pixel đơn giản
+        ctx.fillRect(this.x + this.w*0.2, this.y, this.w*0.6, this.h);
+        ctx.fillRect(this.x + this.w*0.1, this.y + this.h*0.2, this.w*0.8, this.h*0.6);
+        ctx.fillRect(this.x, this.y + this.h*0.4, this.w, this.h*0.6);
+    }
+}
+
+let player;
+let items = [];
+let spiders = [];
+let decorations = [];
+let itemSpawnTimer = 0;
+let spiderSpawnTimer = 0;
+let decoSpawnTimer = 0;
+let currentQuestion = null;
+let timerInterval;
+
+function checkCollision(rect1, rect2) {
+    let r1w = rect1.w * rect1.scale || rect1.size || rect1.w;
+    let r1h = rect1.h * rect1.scale || rect1.size || rect1.h;
+    let r2w = rect2.w || rect2.size;
+    let r2h = rect2.h || rect2.size;
+    let margin = 10; // Bóp hitbox để dễ né
+    return (rect1.x + margin < rect2.x + r2w - margin &&
+            rect1.x + r1w - margin > rect2.x + margin &&
+            rect1.y + margin < rect2.y + r2h - margin &&
+            rect1.y + r1h - margin > rect2.y + margin);
+}
+
+function updateHUD() {
+    document.getElementById('scoreDisplay').innerText = `ĐIỂM: ${gameData.score}`;
+    let hearts = '';
+    for(let i=0; i<gameData.lives; i++) hearts += '❤️';
+    document.getElementById('livesDisplay').innerText = hearts;
+    document.getElementById('streakDisplay').innerText = `Chuỗi đúng: ${gameData.streak}/3`;
+    document.getElementById('questionCountDisplay').innerText = `Câu hỏi: ${gameData.questionsDone}/40`;
+
+    let min = Math.floor(gameData.timeLeft / 60);
+    let sec = gameData.timeLeft % 60;
+    document.getElementById('timeDisplay').innerText = `${min.toString().padStart(2,'0')}:${sec.toString().padStart(2,'0')}`;
+}
+
+function startTimer() {
+    clearInterval(timerInterval);
+    timerInterval = setInterval(() => {
+        if (GAME_STATE === 'PLAYING') {
+            gameData.timeLeft--;
+            updateHUD();
+            if (gameData.timeLeft <= 0) endGame('Hết thời gian!');
+        }
+    }, 1000);
+}
+
+function drawBackground() {
+    // Bầu trời (Xanh nhạt giống ảnh)
+    ctx.fillStyle = '#87CEEB';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    // Đất (Nâu)
+    ctx.fillStyle = '#C87848'; 
+    ctx.fillRect(0, canvas.height - GROUND_HEIGHT, canvas.width, GROUND_HEIGHT);
+    
+    // Cỏ (Xanh lá nhạt)
+    ctx.fillStyle = '#78C800'; 
+    ctx.fillRect(0, canvas.height - GROUND_HEIGHT, canvas.width, 25);
+
+    // Họa tiết Pixel viền cỏ (Giống ảnh)
+    ctx.fillStyle = '#008000';
+    for(let i = 0; i < canvas.width; i+= 24) {
+        let offset = (Date.now() / 20 * gameData.speed) % 24; // Làm mặt đất trôi
+        let drawX = i - offset;
+        ctx.fillRect(drawX, canvas.height - GROUND_HEIGHT + 25, 12, 8);
+        ctx.fillRect(drawX + 12, canvas.height - GROUND_HEIGHT + 15, 12, 10);
+    }
+}
+
+function gameLoop(timestamp) {
+    if (GAME_STATE !== 'PLAYING') {
+        lastTime = timestamp;
+        if(GAME_STATE !== 'STOPPED') reqAnimationId = requestAnimationFrame(gameLoop);
+        return;
+    }
+
+    let deltaTime = timestamp - lastTime;
+    lastTime = timestamp;
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    drawBackground();
+
+    decoSpawnTimer += deltaTime;
+    if (decoSpawnTimer > 1500) {
+        decorations.push(new Decoration());
+        decoSpawnTimer = 0;
+    }
+
+    itemSpawnTimer += deltaTime;
+    if (itemSpawnTimer > 2500) { 
+        let isApple = Math.random() > 0.4; 
+        if (gameData.availableQuestions.length === 0) isApple = false;
+        items.push(new Item(isApple ? 'apple' : 'mushroom'));
+        itemSpawnTimer = 0;
+    }
+
+    spiderSpawnTimer += deltaTime;
+    if (spiderSpawnTimer > 3500 + Math.random() * 2500) {
+        spiders.push(new Spider());
+        spiderSpawnTimer = 0;
+    }
+
+    decorations.forEach(d => { d.update(gameData.speed); d.draw(ctx); });
+    decorations = decorations.filter(d => !d.markedForDeletion);
+
+    // Cập nhật Nhện
+    spiders.forEach(spider => {
+        spider.update(gameData.speed);
+        spider.draw(ctx);
+
+        if (checkCollision(player, spider) && !spider.markedForDeletion) {
+            if (!player.isHurt) { 
+                if (player.targetScale > 1) {
+                    player.targetScale = 1; // Thu nhỏ
+                    player.isHurt = true;
+                    player.hurtTimer = 60; // Nhấp nháy tàng hình ~1s
+                } else {
+                    gameData.lives--;
+                    gameData.streak = 0;
+                    player.isHurt = true;
+                    player.hurtTimer = 60;
+                    updateHUD();
+
+                    if (gameData.lives <= 0) {
+                        endGame('Bị nhện cắn hết mạng 🕸️');
+                    }
+                }
+            }
+        }
+    });
+    spiders = spiders.filter(spider => !spider.markedForDeletion);
+
+    items.forEach(item => {
+        item.update(gameData.speed);
+        item.draw(ctx);
+
+        if (checkCollision(player, item) && !item.markedForDeletion) {
+            item.markedForDeletion = true;
+            if (item.type === 'mushroom') {
+                gameData.score += 50;
+                player.targetScale = Math.min(player.targetScale + 0.3, 1.8);
+                updateHUD();
+            } else if (item.type === 'apple') {
+                triggerQuestion();
+            }
+        }
+    });
+    items = items.filter(item => !item.markedForDeletion);
+
+    player.update();
+    player.draw(ctx);
+
+    if (gameData.speed < 11) gameData.speed += 0.001; 
+
+    reqAnimationId = requestAnimationFrame(gameLoop);
+}
+
+function triggerQuestion() {
+    if (gameData.availableQuestions.length === 0) return;
+    
+    GAME_STATE = 'PAUSED';
+    currentQuestion = gameData.availableQuestions.pop();
+    gameData.questionsDone++;
+
+    document.getElementById('questionTopic').innerText = `Chủ đề: ${currentQuestion.topic}`;
+    const lvlSpan = document.getElementById('questionLevel');
+    lvlSpan.className = `text-white text-xs font-bold px-3 py-1 rounded-full badge-${currentQuestion.level}`;
+    const levelNames = { 'NB': 'Nhận biết', 'TH': 'Thông hiểu', 'VD': 'Vận dụng', 'VDC': 'Vận dụng cao' };
+    lvlSpan.innerText = levelNames[currentQuestion.level];
+
+    document.getElementById('questionText').innerText = `Câu ${gameData.questionsDone}: ${currentQuestion.text}`;
+
+    const optsContainer = document.getElementById('optionsContainer');
+    optsContainer.innerHTML = '';
+    
+    const labels = ['A', 'B', 'C', 'D'];
+    currentQuestion.options.forEach((opt, index) => {
+        const btn = document.createElement('button');
+        btn.className = 'btn btn-option p-4 text-left font-bold text-gray-800 flex items-center gap-3 w-full';
+        btn.innerHTML = `<span class="bg-blue-100 text-blue-800 rounded-full w-8 h-8 flex items-center justify-center shrink-0 border-2 border-blue-300">${labels[index]}</span> <span>${opt}</span>`;
+        btn.onclick = () => handleAnswer(index, btn);
+        optsContainer.appendChild(btn);
+    });
+
+    document.getElementById('feedbackMsg').classList.add('hidden');
+    document.getElementById('nextBtn').classList.add('hidden');
+    document.getElementById('questionScreen').classList.remove('hidden');
+    updateHUD();
+}
+
+function handleAnswer(selectedIndex, btnElement) {
+    const btns = document.querySelectorAll('#optionsContainer .btn');
+    btns.forEach(b => b.style.pointerEvents = 'none');
+
+    const msg = document.getElementById('feedbackMsg');
+    msg.classList.remove('hidden');
+
+    if (selectedIndex === currentQuestion.answer) {
+        btnElement.classList.add('correct');
+        gameData.score += 100;
+        gameData.streak++;
+        msg.innerHTML = '<span class="text-green-600">🎉 CHÍNH XÁC! +100 Điểm</span>';
+        
+        if (gameData.streak >= 3) {
+            gameData.lives++;
+            gameData.streak = 0;
+            msg.innerHTML += '<br><span class="text-yellow-600 text-sm">🔥 Thưởng chuỗi 3 câu: +1 ❤️</span>';
+        }
+    } else {
+        btnElement.classList.add('wrong');
+        btns[currentQuestion.answer].classList.add('correct');
+        gameData.lives--;
+        gameData.streak = 0;
+        if(player.targetScale > 1) player.targetScale = 1; // Sai thì bị teo lại
+        msg.innerHTML = '<span class="text-red-600">❌ SAI RỒI! -1 ❤️</span>';
+    }
+
+    updateHUD();
+    document.getElementById('nextBtn').classList.remove('hidden');
+
+    if (gameData.lives <= 0) {
+        document.getElementById('nextBtn').innerText = 'XEM KẾT QUẢ';
+        document.getElementById('nextBtn').onclick = () => {
+            document.getElementById('questionScreen').classList.add('hidden');
+            endGame('Trả lời sai, hết mạng ❤️');
+        };
+    } else if (gameData.questionsDone >= 40) {
+        document.getElementById('nextBtn').innerText = 'HOÀN THÀNH';
+        document.getElementById('nextBtn').onclick = () => {
+            document.getElementById('questionScreen').classList.add('hidden');
+            victoryGame();
+        };
+    } else {
+        document.getElementById('nextBtn').innerText = 'TIẾP TỤC CHẠY';
+        document.getElementById('nextBtn').onclick = () => {
+            document.getElementById('questionScreen').classList.add('hidden');
+            if (selectedIndex !== currentQuestion.answer) {
+                player.isHurt = true;
+                player.hurtTimer = 60;
+            }
+            GAME_STATE = 'PLAYING';
+        };
+    }
+}
+
+function endGame(reason) {
+    GAME_STATE = 'OVER';
+    clearInterval(timerInterval);
+    document.getElementById('gameOverReason').innerText = reason;
+    document.getElementById('finalQuestions').innerText = gameData.questionsDone;
+    document.getElementById('gameOverScreen').classList.remove('hidden');
+}
+
+function victoryGame() {
+    GAME_STATE = 'VICTORY';
+    clearInterval(timerInterval);
+    document.getElementById('victoryLives').innerText = gameData.lives;
+    document.getElementById('victoryScreen').classList.remove('hidden');
+}
+
+function startGame() {
+    document.getElementById('startScreen').classList.add('hidden');
+    document.getElementById('gameOverScreen').classList.add('hidden');
+    document.getElementById('victoryScreen').classList.add('hidden');
+    document.getElementById('hud').classList.remove('hidden');
+    
+    player = new Player();
+    items = [];
+    spiders = [];
+    decorations = [];
+    itemSpawnTimer = 0;
+    spiderSpawnTimer = 0;
+    
+    gameData.score = 0;
+    gameData.lives = 5;
+    gameData.streak = 0;
+    gameData.timeLeft = 50 * 60;
+    gameData.speed = GAME_SPEED_BASE;
+    initQuestions();
+    
+    updateHUD();
+    startTimer();
+    GAME_STATE = 'PLAYING';
+    lastTime = performance.now();
+    
+    cancelAnimationFrame(reqAnimationId);
+    reqAnimationId = requestAnimationFrame(gameLoop);
+}
+
+window.addEventListener('keydown', (e) => {
+    if (e.code === 'Space' || e.code === 'ArrowUp') {
+        if(player) player.jump();
+    }
+});
+window.addEventListener('touchstart', (e) => {
+    if(GAME_STATE === 'PLAYING') {
+        if(player) player.jump();
+    }
+});
+
+document.getElementById('startBtn').addEventListener('click', startGame);
+document.getElementById('restartBtn').addEventListener('click', startGame);
+document.getElementById('victoryRestartBtn').addEventListener('click', startGame);
+
+function init() {
+    drawBackground();
+    document.getElementById('startScreen').classList.remove('hidden');
+    
+    new QRCode(document.getElementById("qrcode"), {
+        text: window.location.href,
+        width: 100, height: 100,
+        colorDark : "#000000", colorLight : "#ffffff",
+        correctLevel : QRCode.CorrectLevel.L
+    });
+}
+window.onload = init;
+</script>
+</body>
+</html>
